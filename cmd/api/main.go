@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -10,10 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bikhizlit/todo-go/internal/config"
-	"github.com/bikhizlit/todo-go/internal/database"
-	"github.com/bikhizlit/todo-go/internal/tasks"
 	"github.com/gin-gonic/gin"
+
+	"github.com/bikhizlit/todo-go/internal/config"
+	"github.com/bikhizlit/todo-go/internal/controllers"
+	"github.com/bikhizlit/todo-go/internal/database"
+	"github.com/bikhizlit/todo-go/internal/repositories"
+	"github.com/bikhizlit/todo-go/internal/routes"
+	"github.com/bikhizlit/todo-go/internal/services"
 )
 
 func main() {
@@ -22,7 +27,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	startupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	startupCtx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
 
 	db, err := database.Connect(startupCtx, cfg)
 	cancel()
@@ -56,9 +64,12 @@ func main() {
 		})
 	})
 
-	repository := tasks.NewRepository(db)
-	handler := tasks.NewHandler(repository)
-	handler.RegisterRoutes(router)
+	// Connect repository -> service -> controller -> routes.
+	taskRepository := repositories.NewTaskRepository(db)
+	taskService := services.NewTaskService(taskRepository)
+	taskController := controllers.NewTaskController(taskService)
+
+	routes.RegisterTaskRoutes(router, taskController)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.AppPort,
@@ -81,7 +92,7 @@ func main() {
 	select {
 	case err := <-serverErrors:
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("HTTP server: %v", err)
+			log.Printf("HTTP server: %v", err)
 		}
 	case <-stop:
 		log.Println("Shutting down server...")
@@ -95,6 +106,7 @@ func main() {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Graceful shutdown failed: %v", err)
+
 		if closeErr := server.Close(); closeErr != nil {
 			log.Printf("Close server: %v", closeErr)
 		}

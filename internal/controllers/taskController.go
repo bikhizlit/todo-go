@@ -1,4 +1,5 @@
-package tasks
+
+package controllers
 
 import (
 	"encoding/json"
@@ -9,41 +10,31 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/bikhizlit/todo-go/internal/services"
+	"github.com/bikhizlit/todo-go/internal/tasks"
 )
 
-type Handler struct {
-	repo *Repository
+type TaskController struct {
+	service *services.TaskService
 }
 
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewTaskController(service *services.TaskService) *TaskController {
+	return &TaskController{service: service}
 }
 
-func (h *Handler) RegisterRoutes(router *gin.Engine) {
-	api := router.Group("/api/v1")
-
-	api.GET("/tasks", h.List)
-	api.POST("/tasks", h.Create)
-	api.GET("/tasks/:id", h.Get)
-	api.PATCH("/tasks/:id", h.Update)
-	api.DELETE("/tasks/:id", h.Delete)
-}
-
-func (h *Handler) List(c *gin.Context) {
-	result, err := h.repo.List(c.Request.Context())
+func (h *TaskController) List(c *gin.Context) {
+	result, err := h.service.List(c.Request.Context())
 	if err != nil {
-		log.Printf("list tasks: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to load tasks",
-		})
+		h.respondError(c, err, "list tasks")
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	var input CreateTaskInput
+func (h *TaskController) Create(c *gin.Context) {
+	var input tasks.CreateTaskInput
 
 	if err := decodeJSON(c, &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -52,32 +43,22 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	task, err := h.repo.Create(c.Request.Context(), input)
+	task, err := h.service.Create(c.Request.Context(), input)
 	if err != nil {
-		if errors.Is(err, ErrInvalidTitle) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-
-		log.Printf("create task: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to create task",
-		})
+		h.respondError(c, err, "create task")
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"data": task})
 }
 
-func (h *Handler) Get(c *gin.Context) {
+func (h *TaskController) Get(c *gin.Context) {
 	id, ok := parseID(c)
 	if !ok {
 		return
 	}
 
-	task, err := h.repo.Get(c.Request.Context(), id)
+	task, err := h.service.Get(c.Request.Context(), id)
 	if err != nil {
 		h.respondError(c, err, "get task")
 		return
@@ -86,13 +67,14 @@ func (h *Handler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": task})
 }
 
-func (h *Handler) Update(c *gin.Context) {
+func (h *TaskController) Update(c *gin.Context) {
 	id, ok := parseID(c)
 	if !ok {
 		return
 	}
 
-	var input UpdateTaskInput
+	var input tasks.UpdateTaskInput
+
 	if err := decodeJSON(c, &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request body",
@@ -100,7 +82,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	task, err := h.repo.Update(c.Request.Context(), id, input)
+	task, err := h.service.Update(c.Request.Context(), id, input)
 	if err != nil {
 		h.respondError(c, err, "update task")
 		return
@@ -109,13 +91,13 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": task})
 }
 
-func (h *Handler) Delete(c *gin.Context) {
+func (h *TaskController) Delete(c *gin.Context) {
 	id, ok := parseID(c)
 	if !ok {
 		return
 	}
 
-	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		h.respondError(c, err, "delete task")
 		return
 	}
@@ -126,17 +108,13 @@ func (h *Handler) Delete(c *gin.Context) {
 func parseID(c *gin.Context) (uint64, bool) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid task ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
 		return 0, false
 	}
 
-	validID, err := ValidateID(id)
+	validID, err := tasks.ValidateID(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid task ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
 		return 0, false
 	}
 
@@ -158,28 +136,25 @@ func decodeJSON(c *gin.Context, destination any) error {
 	}
 
 	var extra any
-	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return errors.New("request must contain one JSON value")
-		}
-		return err
+	if !errors.Is(decoder.Decode(&extra), io.EOF) {
+		return errors.New("request must contain exactly one JSON value")
 	}
 
 	return nil
 }
 
-func (h *Handler) respondError(
+func (h *TaskController) respondError(
 	c *gin.Context,
 	err error,
 	operation string,
 ) {
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, tasks.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "task not found",
 		})
 
-	case errors.Is(err, ErrInvalidTitle):
+	case errors.Is(err, tasks.ErrInvalidTitle):
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
