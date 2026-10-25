@@ -1,45 +1,42 @@
-
-package services
+package tasks
 
 import (
 	"context"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/bikhizlit/todo-go/internal/tasks"
 )
 
-type TaskRepository interface {
-	List(ctx context.Context) ([]tasks.Task, error)
-	Get(ctx context.Context, id uint64) (tasks.Task, error)
-	Create(ctx context.Context, input tasks.CreateTaskInput) (tasks.Task, error)
-	Update(ctx context.Context, task tasks.Task) (tasks.Task, error)
-	Delete(ctx context.Context, id uint64) error
+type taskStore interface {
+    List(ctx context.Context) ([]Task, error)
+    Get(ctx context.Context, id uint64) (Task, error)
+    Create(ctx context.Context, input CreateTaskInput) (Task, error)
+    Update(ctx context.Context, task Task) (Task, error)
+    Delete(ctx context.Context, id uint64) error
 }
-
 type TaskService struct {
-	repo TaskRepository
+	repo taskStore
 }
 
-func NewTaskService(repo TaskRepository) *TaskService {
+func NewTaskService(repo taskStore) *TaskService {
 	return &TaskService{repo: repo}
 }
 
-func (s *TaskService) List(ctx context.Context) ([]tasks.Task, error) {
+func (s *TaskService) List(ctx context.Context) ([]Task, error) {
 	return s.repo.List(ctx)
 }
 
-func (s *TaskService) Get(ctx context.Context, id uint64) (tasks.Task, error) {
+func (s *TaskService) Get(ctx context.Context, id uint64) (Task, error) {
 	return s.repo.Get(ctx, id)
 }
 
 func (s *TaskService) Create(
 	ctx context.Context,
-	input tasks.CreateTaskInput,
-) (tasks.Task, error) {
+	input CreateTaskInput,
+) (Task, error) {
 	title, err := validateTitle(input.Title)
 	if err != nil {
-		return tasks.Task{}, err
+		return Task{}, err
 	}
 
 	input.Title = title
@@ -50,11 +47,11 @@ func (s *TaskService) Create(
 func (s *TaskService) Update(
 	ctx context.Context,
 	id uint64,
-	input tasks.UpdateTaskInput,
-) (tasks.Task, error) {
+	input UpdateTaskInput,
+) (Task, error) {
 	current, err := s.repo.Get(ctx, id)
 	if err != nil {
-		return tasks.Task{}, err
+		return Task{}, err
 	}
 
 	if input.Title != nil {
@@ -71,7 +68,7 @@ func (s *TaskService) Update(
 
 	title, err := validateTitle(current.Title)
 	if err != nil {
-		return tasks.Task{}, err
+		return Task{}, err
 	}
 
 	current.Title = title
@@ -87,12 +84,12 @@ func validateTitle(title string) (string, error) {
 	title = strings.TrimSpace(title)
 
 	if !utf8.ValidString(title) {
-		return "", tasks.ErrInvalidTitle
+		return "", ErrInvalidTitle
 	}
 
 	length := len([]rune(title))
 	if length < 1 || length > 200 {
-		return "", tasks.ErrInvalidTitle
+		return "", ErrInvalidTitle
 	}
 
 	return title, nil

@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -13,12 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/bikhizlit/todo-go/internal/auth"
 	"github.com/bikhizlit/todo-go/internal/config"
-	"github.com/bikhizlit/todo-go/internal/controllers"
 	"github.com/bikhizlit/todo-go/internal/database"
-	"github.com/bikhizlit/todo-go/internal/repositories"
-	"github.com/bikhizlit/todo-go/internal/routes"
-	"github.com/bikhizlit/todo-go/internal/services"
+	"github.com/bikhizlit/todo-go/internal/tasks"
 )
 
 func main() {
@@ -65,11 +62,26 @@ func main() {
 	})
 
 	// Connect repository -> service -> controller -> routes.
-	taskRepository := repositories.NewTaskRepository(db)
-	taskService := services.NewTaskService(taskRepository)
-	taskController := controllers.NewTaskController(taskService)
+	taskRepo := tasks.NewTaskRepository(db)
+	taskService := tasks.NewTaskService(taskRepo)
+	taskController := tasks.NewTaskController(taskService)
 
-	routes.RegisterTaskRoutes(router, taskController)
+	tasks.RegisterTaskRoutes(router, taskController)
+	tokenManager, err := auth.NewTokenManager(
+		[]byte(cfg.JWTSecret),
+		cfg.JWTIssuer,
+		cfg.JWTAudience,
+		15*time.Minute,
+	)
+	if err != nil {
+		log.Fatalf("initialize JWT token manager: %v", err)
+	}
+	// Auth module
+	authRepo := auth.NewUserRepository(db)
+	authService := auth.NewService(authRepo, tokenManager)
+	authHandler := auth.NewHandler(authService)
+
+	auth.RegisterUserRoutes(router, authHandler, tokenManager)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.AppPort,

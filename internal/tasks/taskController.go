@@ -1,5 +1,4 @@
-
-package controllers
+package tasks
 
 import (
 	"encoding/json"
@@ -10,16 +9,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/bikhizlit/todo-go/internal/services"
-	"github.com/bikhizlit/todo-go/internal/tasks"
 )
 
 type TaskController struct {
-	service *services.TaskService
+	service *TaskService
 }
 
-func NewTaskController(service *services.TaskService) *TaskController {
+func NewTaskController(service *TaskService) *TaskController {
 	return &TaskController{service: service}
 }
 
@@ -34,7 +30,7 @@ func (h *TaskController) List(c *gin.Context) {
 }
 
 func (h *TaskController) Create(c *gin.Context) {
-	var input tasks.CreateTaskInput
+	var input CreateTaskInput
 
 	if err := decodeJSON(c, &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -73,7 +69,7 @@ func (h *TaskController) Update(c *gin.Context) {
 		return
 	}
 
-	var input tasks.UpdateTaskInput
+	var input UpdateTaskInput
 
 	if err := decodeJSON(c, &input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -112,7 +108,7 @@ func parseID(c *gin.Context) (uint64, bool) {
 		return 0, false
 	}
 
-	validID, err := tasks.ValidateID(id)
+	validID, err := ValidateID(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
 		return 0, false
@@ -149,12 +145,12 @@ func (h *TaskController) respondError(
 	operation string,
 ) {
 	switch {
-	case errors.Is(err, tasks.ErrNotFound):
+	case errors.Is(err, ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "task not found",
 		})
 
-	case errors.Is(err, tasks.ErrInvalidTitle):
+	case errors.Is(err, ErrInvalidTitle):
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})

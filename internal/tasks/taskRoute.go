@@ -1,15 +1,13 @@
-
-package routes
+package tasks
 
 import (
+	
 	"github.com/gin-gonic/gin"
-
-	"github.com/bikhizlit/todo-go/internal/controllers"
 )
 
 func RegisterTaskRoutes(
 	router *gin.Engine,
-	taskController *controllers.TaskController,
+	taskController *TaskController,
 ) {
 	api := router.Group("/api/v1")
 

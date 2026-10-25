@@ -9,14 +9,17 @@ import (
 )
 
 type Config struct {
-	AppEnv     string
-	AppPort    string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBParams   string
+	AppEnv      string
+	AppPort     string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBParams    string
+	JWTSecret   string
+	JWTIssuer   string
+	JWTAudience string
 }
 
 func Load() (Config, error) {
@@ -27,14 +30,17 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		AppEnv:     getEnv("App_Env", "development"),
-		AppPort:    getEnv("APP_PORT", "8080"),
-		DBHost:     os.Getenv("DB_HOST"),
-		DBPort:     getEnv("DB_PORT", "3306"),
-		DBUser:     os.Getenv("DB_USER"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     os.Getenv("DB_NAME"),
-		DBParams:   getEnv("DB_PARAMS", "parseTime=true&charset=utf8mb4"),
+		AppEnv:      getEnv("App_Env", "development"),
+		AppPort:     getEnv("APP_PORT", "8080"),
+		DBHost:      os.Getenv("DB_HOST"),
+		DBPort:      getEnv("DB_PORT", "3306"),
+		DBUser:      os.Getenv("DB_USER"),
+		DBPassword:  os.Getenv("DB_PASSWORD"),
+		DBName:      os.Getenv("DB_NAME"),
+		DBParams:    getEnv("DB_PARAMS", "parseTime=true&charset=utf8mb4"),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
+		JWTIssuer:   getEnv("JWT_ISSUER", "todo-go"),
+		JWTAudience: getEnv("JWT_AUDIENCE", "todo-go-api"),
 	}
 
 	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBName == "" {
