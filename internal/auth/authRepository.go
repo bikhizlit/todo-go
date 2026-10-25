@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-
-
 type UserRepository struct {
 	db *sql.DB
 }
@@ -21,23 +19,23 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) CreateUser(
-	ctx context.Context, 
- name, email, passwordHash string) (*User, error) {
-		result, err := r.db.ExecContext(ctx, `
-		INSERT INTO users (name, email, passwordHash)
+	ctx context.Context,
+	name, email, passwordHash string) (*User, error) {
+	result, err := r.db.ExecContext(ctx, `
+		INSERT INTO users (name, email, password_hash)
 		VALUES (?, ?, ?)
-		`,name, email, passwordHash)
-		if err != nil {
-			return nil, fmt.Errorf("Insert user: %w", err)
-		}
-
-		id, err := result.LastInsertId()
-		if err != nil {
-			return nil, fmt.Errorf("get inserted user ID: %w", err)
-		}
-
-		return r.FindById(ctx, uint64(id))
+		`, name, email, passwordHash)
+	if err != nil {
+		return nil, fmt.Errorf("Insert user: %w", err)
 	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("get inserted user ID: %w", err)
+	}
+
+	return r.FindById(ctx, uint64(id))
+}
 
 func (r *UserRepository) FindById(
 	ctx context.Context,
@@ -88,7 +86,6 @@ func (r *UserRepository) FindRefreshUserID(
 	return userID, nil
 }
 
-
 // helper functions: scanUser scans while hashRefreshToken computes hex tokens
 func scanUser(row *sql.Row) (*User, error) {
 	var user User
@@ -114,7 +111,6 @@ func hashRefreshToken(rawToken string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-
 func (r *UserRepository) CreateRefreshSession(
 	ctx context.Context,
 	userID uint64,
@@ -132,7 +128,6 @@ func (r *UserRepository) CreateRefreshSession(
 
 	return nil
 }
-
 
 func (r *UserRepository) RotateRefreshSession(
 	ctx context.Context,
@@ -205,7 +200,6 @@ func (r *UserRepository) RotateRefreshSession(
 
 	return userID, nil
 }
-
 
 func (r *UserRepository) RevokeRefreshSession(
 	ctx context.Context,

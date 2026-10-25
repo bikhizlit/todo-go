@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -50,6 +51,7 @@ func (h *Handler) Register(c *gin.Context) {
 			})
 
 		default:
+			  log.Printf("registration failed: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "unale to register",
 			})

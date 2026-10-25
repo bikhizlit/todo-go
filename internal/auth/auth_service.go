@@ -1,4 +1,3 @@
-
 package auth
 
 import (
@@ -13,8 +12,8 @@ import (
 	"unicode/utf8"
 )
 
- const(
- accessTokenTTL = 15 * time.Minute
+const (
+	accessTokenTTL  = 15 * time.Minute
 	refreshTokenTTL = 30 * 24 * time.Hour
 )
 
@@ -73,7 +72,7 @@ func newRefreshToken() (string, error) {
 func (s *Service) issueTokens(
 	ctx context.Context,
 	userID uint64,
- ) (PasswordToken, error) {
+) (PasswordToken, error) {
 	accessToken, err := s.tokens.Issue(userID)
 	if err != nil {
 		return PasswordToken{}, err
